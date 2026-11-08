@@ -453,6 +453,15 @@ if (window.tailwind) tailwind.config = { theme: { extend: { colors: {
           <div class="flex flex-wrap gap-2"><button class="bg-navy-700 text-white px-4 py-2 rounded-lg">บันทึกการเชื่อมต่อ</button><button type="button" onclick="publishNow()" class="bg-gold-500 text-white px-4 py-2 rounded-lg">เผยแพร่ตอนนี้</button></div>
         </form>
         <div class="border rounded-2xl p-4 space-y-3">
+          <div class="font-bold text-navy-700">นำเข้าข้อมูลจากชีตเดิมในไฟล์ Google Sheets นี้</div>
+          <div class="text-xs text-gray-500">ใช้กับชีตที่มีหัวคอลัมน์ชื่อเดียวกับระบบ (เช่น firstNameTh, nationalId, dob) ระบบแปลงวันที่และเบอร์โทรให้อัตโนมัติ และข้ามรายการที่ซ้ำ</div>
+          <div class="flex flex-wrap gap-2 items-center"><select id="impSheet" class="inp max-w-xs"></select>
+          <button type="button" onclick="loadSheetList()" class="bg-gray-100 px-3 py-2 rounded-lg text-sm">รีเฟรชรายชื่อชีต</button>
+          <button type="button" onclick="previewImport()" class="bg-navy-600 text-white px-3 py-2 rounded-lg text-sm">ตรวจสอบก่อนนำเข้า</button>
+          <button type="button" id="impRun" onclick="runImport()" disabled class="bg-green-600 text-white px-3 py-2 rounded-lg text-sm disabled:opacity-40">นำเข้า</button></div>
+          <div id="impResult" class="text-sm"></div>
+        </div>
+        <div class="border rounded-2xl p-4 space-y-3">
           <div class="font-bold text-navy-700">สำรอง / กู้คืน</div>
           <div class="flex flex-wrap gap-2">
             <button onclick="backupData()" class="bg-navy-700 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-download"></i> ดาวน์โหลดไฟล์สำรอง (.json)</button>
@@ -691,7 +700,7 @@ function switchSubTab(name) {
   document.getElementById('content-' + name).classList.add('active');
   document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active'));
   document.getElementById('subtab-' + name).classList.add('active');
-  if (name === 'connect') loadIntegration();
+  if (name === 'connect') { loadIntegration(); loadSheetList(); }
 }
 
 // ---------- Public config (Static-First: localStorage → Edge → GAS) ----------
@@ -1513,6 +1522,40 @@ async function publishNow() {
   try {
     const r = await api('publishEdge', {});
     toast(r.message || (r.ok ? 'เผยแพร่แล้ว' : 'เผยแพร่ไม่สำเร็จ'), r.ok ? 'success' : 'error'); loadIntegration();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---------- นำเข้าจากชีตเดิมในไฟล์ Google Sheets เดียวกัน ----------
+async function loadSheetList() {
+  try {
+    const list = await api('listSheets', {});
+    const sel = document.getElementById('impSheet');
+    const cand = list.filter(x => !x.system);
+    sel.innerHTML = cand.length ? cand.map(x => `<option value="${esc(x.name)}">${esc(x.name)} (${x.rows} แถว)</option>`).join('') : '<option value="">ไม่พบชีตอื่นในไฟล์นี้</option>';
+    document.getElementById('impResult').textContent = '';
+    document.getElementById('impRun').disabled = true;
+  } catch (e) { toast(e.message, 'error'); }
+}
+async function previewImport() {
+  const name = document.getElementById('impSheet').value;
+  if (!name) { toast('ยังไม่ได้เลือกชีต', 'warn'); return; }
+  try {
+    const r = await api('importSheet', { sheetName: name, dryRun: true });
+    document.getElementById('impResult').innerHTML =
+      `พบ ${r.total} แถว → <b class="text-green-700">นำเข้าได้ ${r.toAdd}</b> · ซ้ำ ${r.duplicates} · ข้าม(ว่าง) ${r.skipped}` +
+      (r.unmapped.length ? `<div class="text-xs text-gray-500 mt-1">คอลัมน์ที่ระบบไม่รู้จัก (ไม่นำเข้า): ${esc(r.unmapped.join(', '))}</div>` : '');
+    document.getElementById('impRun').disabled = r.toAdd === 0;
+  } catch (e) { toast(e.message, 'error'); }
+}
+async function runImport() {
+  const name = document.getElementById('impSheet').value;
+  if (!name || !confirm('นำเข้าข้อมูลจากชีต "' + name + '" ?\n(ระบบสำรองข้อมูลอัตโนมัติไว้ก่อน และข้ามรายการที่ซ้ำ ไม่ทับข้อมูลเดิม)')) return;
+  try {
+    const r = await api('importSheet', { sheetName: name });
+    document.getElementById('impRun').disabled = true;
+    await loadStaffData(true);
+    toast('นำเข้าใบสมัคร ' + r.added + ' รายการเรียบร้อย');
+    document.getElementById('impResult').textContent = 'นำเข้าแล้ว ' + r.added + ' รายการ (ซ้ำ ' + r.duplicates + ')';
   } catch (e) { toast(e.message, 'error'); }
 }
 
