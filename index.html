@@ -141,7 +141,7 @@ if (window.tailwind) tailwind.config = { theme: { extend: { colors: {
 <section id="view-landing" class="view-section max-w-3xl mx-auto no-print">
   <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
     <div class="bg-gradient-to-br from-navy-700 to-navy-500 text-white text-center p-8">
-      <div id="lp-logo" class="w-28 h-28 mx-auto rounded-full bg-white/15 flex items-center justify-center mb-4 overflow-hidden"></div>
+      <div id="lp-logo" class="w-28 h-28 mx-auto mb-4 rounded-full bg-white/15 flex items-center justify-center"></div>
       <h1 id="lp-school" class="text-2xl md:text-3xl font-bold">โรงเรียน</h1>
       <div id="lp-nameen" class="hidden text-navy-100 text-sm"></div>
       <p class="mt-1 text-navy-100">รับสมัครนักเรียน ปีการศึกษา <span id="lp-year"></span></p>
@@ -736,8 +736,13 @@ function applyConfig(c, fromServer) {
   document.getElementById('lp-doc').textContent = CFG.docDate ? 'ในวันที่ ' + CFG.docDate : 'ตามที่โรงเรียนกำหนด';
   setFavicon(CFG.logoUrl || '');
   const logo = document.getElementById('lp-logo');
-  if (CFG.logoUrl) logo.innerHTML = `<img src="${esc(CFG.logoUrl)}" referrerpolicy="no-referrer" class="w-full h-full object-contain rounded-full p-2" alt="">`;
-  else logo.innerHTML = '<i class="fa-solid fa-school text-5xl text-gold-300"></i>';
+  if (CFG.logoUrl) {
+    logo.className = 'mx-auto mb-4 inline-flex items-center justify-center bg-white rounded-2xl p-2 shadow-lg';
+    logo.innerHTML = `<img src="${esc(CFG.logoUrl)}" referrerpolicy="no-referrer" style="height:9rem;width:auto;max-width:70vw;object-fit:contain" alt="ตราโรงเรียน">`;
+  } else {
+    logo.className = 'w-28 h-28 mx-auto mb-4 rounded-full bg-white/15 flex items-center justify-center';
+    logo.innerHTML = '<i class="fa-solid fa-school text-5xl text-gold-300"></i>';
+  }
   const closed = CFG.applyOpen === 'false';
   document.getElementById('lp-closed').classList.toggle('hidden', !closed);
   document.getElementById('lp-apply').classList.toggle('hidden', closed);
